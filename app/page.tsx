@@ -1,6 +1,6 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import NavBar from './components/NavBar'
+import Image from "next/image";
+import Link from "next/link";
+import NavBar from "./components/NavBar";
 
 export default function Home() {
   return (
@@ -28,7 +28,7 @@ export default function Home() {
           rel="noopener noreferrer"
         >
           <h2 className={`mb-3 text-2xl font-semibold`}>
-            Template 1{' '}
+            Template 1{" "}
             <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
               -&gt;
             </span>
@@ -45,7 +45,7 @@ export default function Home() {
           rel="noopener noreferrer"
         >
           <h2 className={`mb-3 text-2xl font-semibold`}>
-            Template 2{' '}
+            Template 2{" "}
             <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
               -&gt;
             </span>
@@ -62,7 +62,7 @@ export default function Home() {
           rel="noopener noreferrer"
         >
           <h2 className={`mb-3 text-2xl font-semibold`}>
-            Template 3{' '}
+            Template 3{" "}
             <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
               -&gt;
             </span>
@@ -79,5 +79,5 @@ export default function Home() {
         </Link>
       </p>
     </main>
-  )
+  );
 }

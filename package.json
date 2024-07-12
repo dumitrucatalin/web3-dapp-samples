@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start --port 3002",
     "lint": "next lint",
-    "pretty": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\""
+    "pretty": "prettier --write \"app/**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "dependencies": {
     "@metamask/sdk-react": "^0.26.5",
