@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { FaWallet } from "react-icons/fa";
 import { MetaMaskProvider, useSDK } from "@metamask/sdk-react";
 import { formatAddress } from "@/lib/utils";
+import Popover from "./Popover";
 
 interface ButtonProps {
   children: React.ReactNode;
@@ -27,26 +28,6 @@ const Button: React.FC<ButtonProps> = ({
   </button>
 );
 
-interface PopoverProps {
-  children: React.ReactNode;
-  trigger: React.ReactNode;
-  className?: string;
-}
-
-const Popover: React.FC<PopoverProps> = ({
-  children,
-  trigger,
-  className = "",
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  return (
-    <div className="relative">
-      <div onClick={() => setIsOpen(!isOpen)}>{trigger}</div>
-      {isOpen && <div className={`absolute ${className}`}>{children}</div>}
-    </div>
-  );
-};
-
 export const ConnectWalletButton: React.FC = () => {
   const { sdk, connected, connecting, account } = useSDK();
 
@@ -67,7 +48,40 @@ export const ConnectWalletButton: React.FC = () => {
   const signMessage = async () => {
     if (sdk) {
       const result = await sdk.connectAndSign({ msg: "Login with MetaMask" });
-      console.log(result);
+      sdk.getProvider()?.sendAsync(
+        {
+          jsonrpc: "2.0",
+          id: 83,
+          method: "eth_chainId",
+          params: [],
+        },
+        (error, result) => {
+          console.log(error);
+          console.log(result);
+        }
+      );
+    }
+  };
+
+  const sendRpcReq = async () => {
+    if (sdk) {
+      try {
+        // Assuming sdk.getProvider() returns a provider that is EIP-1193 compliant
+        const provider = sdk.getProvider();
+        if (provider) {
+          const result = await provider.request({
+            method: "eth_chainId",
+            params: [],
+          });
+          console.log("Result:", result);
+        } else {
+          console.error("Provider is not available.");
+        }
+      } catch (error) {
+        console.error("Error sending RPC request:", error);
+      }
+    } else {
+      console.error("SDK is not initialized.");
     }
   };
 
@@ -79,14 +93,30 @@ export const ConnectWalletButton: React.FC = () => {
           className="right-0 top-10 z-10 mt-2 w-44 rounded-md border bg-gray-100 shadow-lg"
         >
           <button
-            onClick={signMessage}
+            onClick={() => {
+              signMessage();
+              // setIsOpen(false);  // Close popover after action
+            }}
             className="block w-full py-2 pl-2 pr-4 text-left text-[#F05252] hover:bg-gray-200"
           >
             SignIn
           </button>
 
           <button
-            onClick={disconnect}
+            onClick={() => {
+              sendRpcReq();
+              // setIsOpen(false);  // Close popover after action
+            }}
+            className="block w-full py-2 pl-2 pr-4 text-left text-[#F05252] hover:bg-gray-200"
+          >
+            SendRpcReq
+          </button>
+
+          <button
+            onClick={() => {
+              disconnect();
+              // setIsOpen(false);  // Close popover after action
+            }}
             className="block w-full py-2 pl-2 pr-4 text-left text-[#F05252] hover:bg-gray-200"
           >
             Disconnect
