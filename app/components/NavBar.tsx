@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { FaWallet } from "react-icons/fa";
 import { MetaMaskProvider, useSDK } from "@metamask/sdk-react";
 import { formatAddress } from "@/lib/utils";
