@@ -2,6 +2,8 @@
 
 This is a Web3 DApp sample implementing multiple smart contracts in React + Next.js.
 
+It implements the smart contracts from repo: `https://github.com/dumitrucatalin/smart-contract-samples`
+
 ## How It Works
 
 ## Demo
