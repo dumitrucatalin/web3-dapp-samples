@@ -1,10 +1,79 @@
 import { ethers, Provider, Contract, getDefaultProvider } from "ethers"; // Updated imports
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 const contractABI = [
   {
     inputs: [],
     stateMutability: "nonpayable",
     type: "constructor",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "allowedBy",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "allowedTo",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+    ],
+    name: "AllowanceSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "from",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "to",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "bytes",
+        name: "payload",
+        type: "bytes",
+      },
+    ],
+    name: "TransferMade",
+    type: "event",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "_guardian",
+        type: "address",
+      },
+    ],
+    name: "addGuardian",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
     inputs: [
@@ -49,6 +118,19 @@ const contractABI = [
     name: "denySending",
     outputs: [],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getOwner",
+    outputs: [
+      {
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
     type: "function",
   },
   {
@@ -119,6 +201,19 @@ const contractABI = [
     inputs: [
       {
         internalType: "address",
+        name: "_guardian",
+        type: "address",
+      },
+    ],
+    name: "removeGuardian",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
         name: "_from",
         type: "address",
       },
@@ -168,12 +263,16 @@ const contractABI = [
   },
 ];
 
-const contractAddress = "0x1bf0f2198bF707B75a29F80ea9539e72af1D8074"; // Replace with your contract address
+const contractAddress = "0x8f5c23B9E2Afeab5E3Fda5E653e6101c36fa98be"; // Replace with your contract address
 
 const SmartContractWallet = () => {
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
   const [value, setValue] = useState<string | number>("");
+  const [connectedWallet, setConnectedWallet] = useState<string>("");
   const [weiSent, setWeiSent] = useState<string | number>("");
+  const [isOwner, setIsOwner] = useState(false); // New state to track owner
+  const [allowance, setAllowance] = useState("0"); // New state to track allowance
+  const [walletFunds, setWalletFunds] = useState("0"); // New state to track allowance
 
   const [address, setAddress] = useState("");
   const [amount, setAmount] = useState("");
@@ -190,6 +289,7 @@ const SmartContractWallet = () => {
         const signer = await provider.getSigner();
         setSigner(signer);
         console.log("Wallet connected", signer.address);
+        setConnectedWallet(signer.address);
       } catch (err) {
         console.error(err);
       }
@@ -207,6 +307,7 @@ const SmartContractWallet = () => {
         // Convert Wei to Ether
         const etherValue = ethers.formatEther(weiValue);
         setValue(etherValue); // Assuming setValue can handle string representation of Ether
+        setWalletFunds(etherValue);
         console.log("Converted Ether value:", etherValue);
       } catch (error: any) {
         console.error("Error fetching value:", error);
@@ -315,16 +416,6 @@ const SmartContractWallet = () => {
     }
   }
 
-  async function setAllowance(address: string, amountInWei: number) {
-    try {
-      const tx = await contract.setAllowance(address, amountInWei);
-      await tx.wait();
-      console.log(`Allowance set for ${address}:`, amountInWei.toString());
-    } catch (error: any) {
-      console.error("Error setting allowance:", error);
-    }
-  }
-
   async function transfer(toAddress: string, amount: number, payload: any) {
     try {
       const tx = await contract.transfer(toAddress, amount, payload);
@@ -424,19 +515,134 @@ const SmartContractWallet = () => {
     }
   };
 
-  // const handleTransfer = async () => {
-  //   try {
-  //     const tx = await contract.transfer(address, ethers.parseEther(amount), ethers.utils.arrayify(payload));
-  //     await tx.wait();
-  //     setResult(`Transferred ${amount} ETH to ${address} with payload.`);
-  //   } catch (error: any) {
-  //     console.error('Error:', error);
-  //     setResult(`Error: ${error.message}`);
-  //   }
-  // };
+  const checkIfOwner = async (signer: ethers.Signer) => {
+    if (contract) {
+      try {
+        const ownerAddress = await contract.getOwner();
+        const signerAddress = await signer.getAddress();
+        setIsOwner(ownerAddress.toLowerCase() === signerAddress.toLowerCase());
+        console.log(
+          "Owner address:",
+          ownerAddress,
+          "Signer address:",
+          signerAddress
+        );
+      } catch (error) {
+        console.error("Error checking owner:", error);
+      }
+    }
+  };
+
+  const fetchAllowance = async (signer: ethers.Signer) => {
+    if (contract) {
+      try {
+        const signerAddress = await signer.getAddress();
+        const currentAllowance = await contract.allowance(signerAddress);
+        setAllowance(currentAllowance.toString());
+        console.log(
+          "Allowance for current wallet:",
+          currentAllowance.toString()
+        );
+      } catch (error) {
+        console.error("Error fetching allowance:", error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (signer) {
+      checkIfOwner(signer);
+      fetchAllowance(signer);
+      fetchValueHandler();
+    } else {
+      connectWalletHandler();
+    }
+  }, [signer]);
+
+  // Function to add a guardian
+  const handleAddGuardian = async () => {
+    try {
+      if (!address) {
+        setResult("Error: Please insert an address");
+        return;
+      }
+      if (!signer) {
+        await connectWalletHandler();
+      }
+
+      const tx = await contract.addGuardian(address);
+      await tx.wait();
+      setResult(`Guardian added: ${address}`);
+    } catch (error: any) {
+      console.error("Error adding guardian:", error);
+      setResult(`Error: ${error.message}`);
+    }
+  };
+
+  // Function to remove a guardian
+  const handleRemoveGuardian = async () => {
+    try {
+      if (!address) {
+        setResult("Error: Please insert an address");
+        return;
+      }
+      if (!signer) {
+        await connectWalletHandler();
+      }
+
+      const tx = await contract.removeGuardian(address);
+      await tx.wait();
+      setResult(`Guardian removed: ${address}`);
+    } catch (error: any) {
+      console.error("Error removing guardian:", error);
+      setResult(`Error: ${error.message}`);
+    }
+  };
 
   return (
-    <div className="p-5">
+    <div className="w-full p-2">
+      <div className="pb-4">
+        <h1 className="mb-4 text-xl font-bold">Smart Contract Wallet</h1>
+
+        <a
+          href="https://github.com/dumitrucatalin/smart-contract-samples/blob/main/src/contracts/SmartContractWallet.sol"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-4 text-xl font-bold text-blue-400"
+        >
+          Smart Contract Git Repo
+        </a>
+        <br></br>
+
+        <a
+          href={`https://sepolia.etherscan.io/address/${contractAddress}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-4 text-xl font-bold text-blue-400"
+        >
+          Sepolia SmartContract {contractAddress}
+        </a>
+      </div>
+
+      {signer && (
+        <div className="pb-4 pt-4">
+          <div className="rounded bg-blue-500 px-4 py-2 text-white">
+            Connected Wallet : {connectedWallet}
+          </div>
+          <p className="text-gray-100">
+            Is Owner:{" "}
+            <span className="font-semibold">{isOwner ? "Yes" : "No"}</span>
+          </p>
+          <p className="text-gray-100">
+            Allowance: <span className="font-semibold">{allowance} Wei</span>
+          </p>
+          <p className="text-gray-100">
+            Wallet funds:{" "}
+            <span className="font-semibold">{walletFunds} ETH</span>
+          </p>
+        </div>
+      )}
+
       <h1 className="mb-4 text-xl font-bold">Smart Contract Interaction</h1>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -473,74 +679,81 @@ const SmartContractWallet = () => {
           </button>
         )}
 
-        {signer && (
+        {/* {signer && (
           <div className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700">
             Wallet Connected
           </div>
-        )}
+        )} */}
         <button
           onClick={handleAllowance}
           className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
         >
           Check Allowance
         </button>
-        <button
-          onClick={handleGetConfirmationsForReset}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          Confirmations Needed
-        </button>
-        <button
-          onClick={handleDenySending}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          Deny Sending
-        </button>
-        <button
-          onClick={handleGetWalletFunds}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          Get Wallet Funds
-        </button>
-        <button
-          onClick={handleIsGuardian}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          Is Guardian?
-        </button>
-        <button
-          onClick={handleIsAllowedToSend}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          Is Allowed to Send?
-        </button>
-        <button
-          onClick={handleProposeNewOwner}
-          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          Propose New Owner
-        </button>
+
         <button
           onClick={handleSetAllowance}
           className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
         >
           Set Allowance
         </button>
-        {/* Button for transfer is commented out in your example, uncomment if needed
-        <button onClick={handleTransfer} className="bg-blue-500 hover:bg-blue-700 text-white px-4 py-2 rounded">Transfer</button> 
-        */}
+
+        <button
+          onClick={handleIsAllowedToSend}
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
+        >
+          Is Allowed to Send?
+        </button>
+
+        <button
+          onClick={handleDenySending}
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
+        >
+          Deny Sending
+        </button>
+
+        <button
+          onClick={handleGetConfirmationsForReset}
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
+        >
+          Confirmations Needed
+        </button>
+
+        <button
+          onClick={handleGetWalletFunds}
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
+        >
+          Get Wallet Funds
+        </button>
+
+        <button
+          onClick={handleProposeNewOwner}
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
+        >
+          Propose New Owner
+        </button>
+
+        <button
+          onClick={handleIsGuardian}
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
+        >
+          Is Guardian?
+        </button>
+
+        <button
+          onClick={handleAddGuardian}
+          className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
+        >
+          Add Guardian
+        </button>
+
+        <button
+          onClick={handleRemoveGuardian}
+          className="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-700"
+        >
+          Remove Guardian
+        </button>
       </div>
-
-      <button
-        onClick={fetchValueHandler}
-        className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
-      >
-        Fetch Value
-      </button>
-      <p className="mb-4 text-gray-100">
-        Value: <span className="font-semibold">{value} ETH</span>
-      </p>
-
       <button
         onClick={sendWeiToContract}
         className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700"
@@ -551,7 +764,7 @@ const SmartContractWallet = () => {
         Sent: <span className="font-semibold">{weiSent} Wei</span>
       </p>
 
-      <p className="mt-4 text-gray-800">Result: {result}</p>
+      <p className="mt-4 text-gray-500">Result: {result}</p>
     </div>
   );
 };

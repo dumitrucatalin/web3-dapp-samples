@@ -1,9 +1,18 @@
-import React from "react";
+"use client";
+import React, { useEffect } from "react";
 import Image from "next/image";
 import Layout from "./components/Layout";
 
 export default function Home() {
-  console.log("Home rendered");
+  // Redirect on the client side using useEffect
+  useEffect(() => {
+    // Check if window is available to confirm this is running on the client side
+    if (typeof window !== "undefined") {
+      // Perform client-side redirect
+      window.location.href = "/smart-contract-wallet";
+    }
+  }, []); // Empty dependency array ensures this runs only once after the initial render
+
   return (
     <>
       <Layout>
